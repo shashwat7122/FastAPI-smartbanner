@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Banner Designer Bot</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #chat-log {
+            border: 1px solid #ccc;
+            height: 400px;
+            padding: 10px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            background: #fafafa;
+        }
+        .msg-user {
+            text-align: right;
+            margin: 5px 0;
+            color: #0b7285;
+        }
+        .msg-bot {
+            text-align: left;
+            margin: 5px 0;
+            color: #333;
+        }
+        .msg-bot pre {
+            white-space: pre-wrap;
+        }
+        #user-input {
+            width: 70%;
+            padding: 8px;
+        }
+        #send-btn {
+            padding: 8px 16px;
+        }
+        img.banner {
+            display: block;
+            max-width: 100%;
+            border: 1px solid #ddd;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+<h1>Banner Designer Bot</h1>
+
+<div id="chat-log"></div>
+
+<input id="user-input" type="text" placeholder="Type your message here..." />
+<button id="send-btn">Send</button>
+
+<script>
+    const chatLog = document.getElementById('chat-log');
+    const userInput = document.getElementById('user-input');
+    const sendBtn = document.getElementById('send-btn');
+
+    function appendMessage(text, sender) {
+        const div = document.createElement('div');
+        div.className = sender === 'user' ? 'msg-user' : 'msg-bot';
+
+        // allow line breaks
+        const pre = document.createElement('pre');
+        pre.textContent = text;
+        div.appendChild(pre);
+
+        chatLog.appendChild(div);
+        chatLog.scrollTop = chatLog.scrollHeight;
+    }
+
+    function appendBanner(base64Data) {
+        const img = document.createElement('img');
+        img.className = 'banner';
+        img.src = 'data:image/png;base64,' + base64Data;
+        chatLog.appendChild(img);
+        chatLog.scrollTop = chatLog.scrollHeight;
+    }
+
+    async function sendMessage() {
+        const text = userInput.value.trim();
+        if (!text) return;
+
+        appendMessage(text, 'user');
+        userInput.value = '';
+
+        try {
+            const resp = await fetch('/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: text })
+            });
+
+            const data = await resp.json();
+            appendMessage(data.reply, 'bot');
+
+            if (data.banner_base64) {
+                appendBanner(data.banner_base64);
+            }
+        } catch (err) {
+            appendMessage('Error contacting server: ' + err, 'bot');
+        }
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+    userInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            sendMessage();
+        }
+    });
+
+    // On page load, send a hidden __INIT__ message to start the conversation
+    window.addEventListener('load', async () => {
+        try {
+            const resp = await fetch('/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: '__INIT__' })
+            });
+            const data = await resp.json();
+            appendMessage(data.reply, 'bot');
+        } catch (err) {
+            appendMessage('Error initializing chat: ' + err, 'bot');
+        }
+    });
+</script>
+</body>
+</html>
